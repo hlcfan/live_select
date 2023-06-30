@@ -11,6 +11,8 @@ defmodule LiveSelect.Component do
   @required_assigns ~w(field)a
 
   @default_opts [
+    text_input_field: nil,
+    text_input_field_name: nil,
     active_option_class: nil,
     allow_clear: false,
     available_option_class: nil,
@@ -126,17 +128,16 @@ defmodule LiveSelect.Component do
         |> assign_new(opt, fn -> default end)
       end)
       |> update(:options, &normalize_options/1)
-      |> assign(:text_input_field, String.to_atom("#{socket.assigns.field.field}_text_input"))
       |> assign_new(:selection, fn
-        %{field: field, options: options, mode: mode} ->
-          set_selection(field.value, options, mode)
+        %{field: field, text_input_field: text_input_field, options: options, mode: mode} ->
+          set_selection(field.value, text_input_field.value, options, mode)
       end)
 
     socket =
       if Map.has_key?(assigns, :value) do
         update(socket, :selection, fn
           _, %{options: options, mode: mode, value: value} ->
-            set_selection(value, options, mode)
+            set_selection(value, value, options, mode)
         end)
         |> client_select(%{input_event: true})
       else
@@ -439,18 +440,25 @@ defmodule LiveSelect.Component do
     })
   end
 
-  defp set_selection(value, options, :single) do
+  defp set_selection(value, text_input_value, options, :single) do
     if option = Enum.find(options, fn %{value: val} -> value == val end) do
       [option]
     else
       case normalize(value) do
-        {:ok, option} -> List.wrap(option)
-        :error -> invalid_option(value, :selection)
+        {:ok, nil} ->
+          List.wrap(option)
+
+        {:ok, option} ->
+          %{option | label: text_input_value}
+          |> List.wrap()
+
+        :error ->
+          invalid_option(value, :selection)
       end
     end
   end
 
-  defp set_selection(value, options, _) do
+  defp set_selection(value, _text_input_value, options, _) do
     value
     |> then(&if Enumerable.impl_for(&1), do: &1, else: List.wrap(&1))
     |> Enum.map(

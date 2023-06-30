@@ -259,6 +259,17 @@ defmodule LiveSelect do
     required: true,
     doc: "a Phoenix.HTML.FormField struct identifying the form's field"
 
+  attr :text_input_field, :any,
+    required: false,
+    default: nil,
+    doc:
+      "a Phoenix.HTML.FormField struct identifying the form's text input field. It defaults to the `field` if not set."
+
+  attr :text_input_field_name, :string,
+    required: false,
+    default: nil,
+    doc: "The text input field name. It defaults to the `field.field` if not set."
+
   attr :id, :string,
     doc:
       ~S(an id to assign to the component. If none is provided, `#{form_name}_#{field}_live_select_component` will be used)
@@ -354,6 +365,27 @@ defmodule LiveSelect do
 
         _, _ ->
           raise "if you pass field as atom or string, you also have to pass a form"
+      end)
+      |> update(:text_input_field, fn
+        %Phoenix.HTML.FormField{} = field, _ ->
+          field
+
+        field, %{form: form} ->
+          IO.warn(
+            "instead of passing separate form and field attributes, pass a single field attribute of type Phoenix.HTML.FormField"
+          )
+
+          to_form(form)[field]
+
+        _, %{field: field} ->
+          field
+      end)
+      |> update(:text_input_field_name, fn
+        _, %{text_input_field: text_input_field} ->
+          text_input_field.field
+
+        _, %{field: field} ->
+          String.to_atom("#{field.field}_text_input")
       end)
       |> assign_new(:id, fn %{field: field} ->
         "#{field.form.name}_#{field.field}_live_select_component"
